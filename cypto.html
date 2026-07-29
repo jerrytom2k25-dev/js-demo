@@ -1,0 +1,326 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全能加密工具箱</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        .tab-active { border-bottom: 2px solid #2563eb; color: #2563eb; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-4 md:p-8 font-sans text-gray-800">
+    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-xl overflow-hidden border border-gray-100">
+        <!-- 头部 -->
+        <header class="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 text-white shadow-md">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight"><i class="fa-solid fa-shield-halved mr-2"></i>全能加密工具箱</h1>
+                    <p class="text-blue-100 text-sm mt-1 opacity-90">安全、高效的本地文本处理与完整性校验中心</p>
+                </div>
+                <button onclick="tool.clearAll()" class="text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded transition">清空</button>
+            </div>
+        </header>
+
+        <!-- 标签导航 -->
+        <nav class="flex border-b border-gray-200 bg-gray-50 overflow-x-auto scrollbar-hide">
+            <button class="tab-btn px-6 py-4 text-sm font-medium text-gray-500 hover:text-blue-600 tab-active transition-colors duration-200" data-tab="aes">AES 加密</button>
+            <button class="tab-btn px-6 py-4 text-sm font-medium text-gray-500 hover:text-blue-600 transition-colors duration-200" data-tab="caesar">凯撒密码</button>
+            <button class="tab-btn px-6 py-4 text-sm font-medium text-gray-500 hover:text-blue-600 transition-colors duration-200" data-tab="base64">Base64</button>
+            <button class="tab-btn px-6 py-4 text-sm font-medium text-gray-500 hover:text-blue-600 transition-colors duration-200" data-tab="rot13">ROT13</button>
+            <button class="tab-btn px-6 py-4 text-sm font-medium text-gray-500 hover:text-blue-600 transition-colors duration-200" data-tab="hash">哈希校验</button>
+        </nav>
+
+        <div class="p-6 md:p-8 space-y-8">
+            <!-- 通用输入区 -->
+            <div class="space-y-2">
+                <label class="block text-sm font-semibold text-gray-700 flex justify-between">
+                    <span>输入内容</span>
+                    <span class="text-xs font-normal text-gray-400" id="charCount">0 字符</span>
+                </label>
+                <textarea id="inputText" rows="4" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-sm font-mono text-sm" placeholder="在此输入需要处理的文本..."></textarea>
+            </div>
+
+            <!-- AES 面板 -->
+            <div id="aesPanel" class="panel fade-in space-y-4 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-blue-800 uppercase mb-1">密钥 (Key)</label>
+                        <input type="text" id="aesKey" class="w-full p-2 border border-blue-200 rounded focus:outline-none focus:border-blue-500" placeholder="任意字符串作为密钥">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-blue-800 uppercase mb-1">操作模式</label>
+                        <select id="aesMode" class="w-full p-2 border border-blue-200 rounded focus:outline-none focus:border-blue-500 bg-white">
+                            <option value="encrypt">🔒 加密 (Encrypt)</option>
+                            <option value="decrypt">🔓 解密 (Decrypt)</option>
+                        </select>
+                    </div>
+                </div>
+                <button onclick="tool.processAES()" class="w-full bg-blue-600 text-white font-medium py-2.5 rounded-lg hover:bg-blue-700 active:scale-[0.98] transition shadow-sm">执行 AES 操作</button>
+            </div>
+
+            <!-- 凯撒面板 -->
+            <div id="caesarPanel" class="panel hidden fade-in space-y-4 bg-indigo-50/50 p-4 rounded-lg border border-indigo-100">
+                <div class="flex items-center gap-4">
+                    <div class="flex-1">
+                        <label class="block text-xs font-bold text-indigo-800 uppercase mb-1">偏移量 (Shift)</label>
+                        <input type="number" id="caesarShift" value="3" min="1" max="25" class="w-full p-2 border border-indigo-200 rounded focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div class="flex-1 flex gap-2 pt-5">
+                        <button onclick="tool.processCaesar('encrypt')" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition shadow-sm">加密</button>
+                        <button onclick="tool.processCaesar('decrypt')" class="flex-1 bg-white border border-indigo-200 text-indigo-700 py-2 rounded-lg hover:bg-indigo-50 transition shadow-sm">解密</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Base64 面板 -->
+            <div id="base64Panel" class="panel hidden fade-in space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <div class="flex gap-3">
+                    <button onclick="tool.processBase64('encode')" class="flex-1 bg-gray-800 text-white py-2.5 rounded-lg hover:bg-gray-900 transition shadow-sm">编码 (Encode)</button>
+                    <button onclick="tool.processBase64('decode')" class="flex-1 bg-white border border-gray-300 text-gray-700 py-2.5 rounded-lg hover:bg-gray-50 transition shadow-sm">解码 (Decode)</button>
+                </div>
+            </div>
+
+            <!-- ROT13 面板 -->
+            <div id="rot13Panel" class="panel hidden fade-in space-y-4 bg-purple-50/50 p-4 rounded-lg border border-purple-100">
+                <button onclick="tool.processROT13()" class="w-full bg-purple-600 text-white font-medium py-2.5 rounded-lg hover:bg-purple-700 transition shadow-sm">执行 ROT13 变换</button>
+                <p class="text-xs text-center text-purple-600/70">提示：ROT13 是自逆运算，再次执行即可还原。</p>
+            </div>
+
+            <!-- 哈希校验面板 -->
+            <div id="hashPanel" class="panel hidden fade-in space-y-6">
+                <div class="grid grid-cols-2 gap-4">
+                    <button onclick="tool.calcHash('md5')" class="bg-red-50 border border-red-200 text-red-700 py-3 rounded-lg hover:bg-red-100 transition flex flex-col items-center gap-1">
+                        <span class="font-bold">MD5</span>
+                        <span class="text-xs opacity-70">32位哈希值</span>
+                    </button>
+                    <button onclick="tool.calcHash('sha256')" class="bg-indigo-50 border border-indigo-200 text-indigo-700 py-3 rounded-lg hover:bg-indigo-100 transition flex flex-col items-center gap-1">
+                        <span class="font-bold">SHA-256</span>
+                        <span class="text-xs opacity-70">64位哈希值</span>
+                    </button>
+                </div>
+                
+                <div class="border-t border-gray-200 pt-6">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">文件完整性校验 (批量比对)</label>
+                    <div class="flex items-center gap-2 mb-3">
+                        <input type="file" id="fileInput" multiple class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 cursor-pointer"/>
+                    </div>
+                    <button onclick="tool.calcFileHash()" class="w-full bg-green-600 text-white font-medium py-2.5 rounded-lg hover:bg-green-700 transition shadow-sm">计算并比对文件哈希</button>
+                    <div id="fileResult" class="mt-4 text-sm font-mono bg-gray-50 p-3 rounded border border-gray-200 hidden break-all max-h-40 overflow-y-auto"></div>
+                </div>
+            </div>
+
+            <!-- 输出区 -->
+            <div class="space-y-2 pt-4 border-t border-gray-100">
+                <label class="block text-sm font-semibold text-gray-700">处理结果</label>
+                <div class="relative">
+                    <textarea id="outputText" rows="4" readonly class="w-full p-4 bg-gray-50 border border-gray-300 rounded-lg text-gray-800 font-mono text-sm focus:ring-2 focus:ring-gray-200 transition"></textarea>
+                    <button onclick="tool.copyResult()" class="absolute top-2 right-2 text-xs bg-white border border-gray-200 px-2 py-1 rounded shadow-sm hover:bg-gray-50 text-gray-600 transition">复制</button>
+                </div>
+            </div>
+        </div>
+        
+        <footer class="bg-gray-50 p-4 text-center text-xs text-gray-400 border-t border-gray-100">
+            所有处理均在本地浏览器完成，数据不会上传至服务器。
+        </footer>
+    </div>
+
+    <script>
+        class CryptoTool {
+            constructor() {
+                this.initTabs();
+                this.initInputListener();
+            }
+
+            initTabs() {
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        // 更新按钮状态
+                        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-active'));
+                        e.target.classList.add('tab-active');
+                        
+                        // 切换面板
+                        document.querySelectorAll('.panel').forEach(p => p.classList.add('hidden'));
+                        const panelId = e.target.dataset.tab + 'Panel';
+                        document.getElementById(panelId).classList.remove('hidden');
+                    });
+                });
+            }
+
+            initInputListener() {
+                document.getElementById('inputText').addEventListener('input', (e) => {
+                    document.getElementById('charCount').textContent = `${e.target.value.length} 字符`;
+                });
+            }
+
+            clearAll() {
+                document.getElementById('inputText').value = '';
+                document.getElementById('outputText').value = '';
+                document.getElementById('charCount').textContent = '0 字符';
+                document.getElementById('fileResult').classList.add('hidden');
+            }
+
+            // AES 处理
+            processAES() {
+                const input = document.getElementById('inputText').value;
+                const key = document.getElementById('aesKey').value;
+                const mode = document.getElementById('aesMode').value;
+                
+                if (!input) return alert('请输入需要处理的内容');
+                if (!key) return alert('请输入密钥');
+
+                try {
+                    let result;
+                    if (mode === 'encrypt') {
+                        result = CryptoJS.AES.encrypt(input, key).toString();
+                    } else {
+                        const bytes = CryptoJS.AES.decrypt(input, key);
+                        result = bytes.toString(CryptoJS.enc.Utf8);
+                        if (!result) throw new Error('解密失败，请检查密钥或密文是否正确');
+                    }
+                    document.getElementById('outputText').value = result;
+                } catch (e) {
+                    alert('错误: ' + e.message);
+                }
+            }
+
+            // 凯撒处理
+            processCaesar(action) {
+                const input = document.getElementById('inputText').value;
+                const shift = parseInt(document.getElementById('caesarShift').value) || 0;
+                let result = '';
+                
+                for (let i = 0; i < input.length; i++) {
+                    let charCode = input.charCodeAt(i);
+                    if (charCode >= 65 && charCode <= 90) {
+                        let newCode = action === 'encrypt' ? charCode + shift : charCode - shift;
+                        if (newCode > 90) newCode -= 26;
+                        if (newCode < 65) newCode += 26;
+                        result += String.fromCharCode(newCode);
+                    } else if (charCode >= 97 && charCode <= 122) {
+                        let newCode = action === 'encrypt' ? charCode + shift : charCode - shift;
+                        if (newCode > 122) newCode -= 26;
+                        if (newCode < 97) newCode += 26;
+                        result += String.fromCharCode(newCode);
+                    } else {
+                        result += input[i];
+                    }
+                }
+                document.getElementById('outputText').value = result;
+            }
+
+            // Base64 处理
+            processBase64(action) {
+                const input = document.getElementById('inputText').value;
+                if (!input) return;
+                try {
+                    let result;
+                    if (action === 'encode') {
+                        result = btoa(unescape(encodeURIComponent(input)));
+                    } else {
+                        result = decodeURIComponent(escape(atob(input)));
+                    }
+                    document.getElementById('outputText').value = result;
+                } catch (e) {
+                    alert('Base64 格式错误或包含非法字符');
+                }
+            }
+
+            // ROT13 处理
+            processROT13() {
+                const input = document.getElementById('inputText').value;
+                const result = input.replace(/[a-zA-Z]/g, function (c) {
+                    return String.fromCharCode((c <= "Z" ? 90 : 122) >= (c = c.charCodeAt(0) + 13) ? c : c - 26);
+                });
+                document.getElementById('outputText').value = result;
+            }
+
+            // 文本哈希
+            calcHash(algo) {
+                const input = document.getElementById('inputText').value;
+                if (!input) return alert('请输入需要计算哈希的文本');
+                
+                let hash;
+                if (algo === 'md5') {
+                    hash = CryptoJS.MD5(input).toString();
+                } else {
+                    hash = CryptoJS.SHA256(input).toString();
+                }
+                document.getElementById('outputText').value = hash;
+            }
+
+            // 文件哈希
+            async calcFileHash() {
+                const files = document.getElementById('fileInput').files;
+                if (!files.length) return alert('请先选择至少一个文件');
+                
+                const resultDiv = document.getElementById('fileResult');
+                resultDiv.classList.remove('hidden');
+                resultDiv.innerHTML = '<span class="text-gray-500">正在计算中...</span>';
+
+                const hashes = [];
+                for (const file of files) {
+                    try {
+                        const hash = await this.getFileHash(file);
+                        hashes.push({ name: file.name, hash: hash });
+                    } catch (e) {
+                        console.error(e);
+                    }
+                }
+
+                if (hashes.length === 0) {
+                    resultDiv.innerHTML = '<span class="text-red-500">计算失败</span>';
+                    return;
+                }
+
+                const firstHash = hashes.hash;
+                const isIdentical = hashes.every(h => h.hash === firstHash);
+                
+                let html = `<div class="${isIdentical && hashes.length > 1 ? 'text-green-600' : (hashes.length === 1 ? 'text-blue-600' : 'text-red-600')} font-bold mb-3 pb-2 border-b border-gray-200">
+                    ${hashes.length === 1 ? '单文件哈希值：' : (isIdentical ? '✅ 所有文件内容完全一致' : '❌ 文件内容存在差异')}
+                </div>`;
+                
+                hashes.forEach(h => {
+                    html += `<div class="mb-2 last:mb-0"><div class="font-semibold text-gray-700 truncate" title="${h.name}">${h.name}</div><div class="text-gray-500 text-xs break-all">${h.hash}</div></div>`;
+                });
+                resultDiv.innerHTML = html;
+            }
+
+            getFileHash(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = e => {
+                        try {
+                            const wordArray = CryptoJS.lib.WordArray.create(e.target.result);
+                            resolve(CryptoJS.SHA256(wordArray).toString());
+                        } catch (err) {
+                            reject(err);
+                        }
+                    };
+                    reader.onerror = reject;
+                    reader.readAsArrayBuffer(file);
+                });
+            }
+
+            copyResult() {
+                const output = document.getElementById('outputText');
+                if (!output.value) return;
+                output.select();
+                document.execCommand('copy');
+                
+                // 简单的视觉反馈
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '已复制!';
+                setTimeout(() => btn.textContent = originalText, 1500);
+            }
+        }
+
+        const tool = new CryptoTool();
+    </script>
+</body>
+</html>
