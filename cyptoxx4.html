@@ -1,0 +1,344 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro 加密工具箱 - RSA/ECC/AES/Hash</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/8.0.2/jsrsasign-all-min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .tab-active { border-bottom: 3px solid #3b82f6; color: #2563eb; font-weight: 600; }
+        .fade-in { animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans text-slate-800">
+
+    <nav class="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center gap-3">
+                    <div class="bg-indigo-600 text-white p-2 rounded-lg shadow-lg shadow-indigo-500/30">
+                        <i class="fa-solid fa-shield-halved text-xl"></i>
+                    </div>
+                    <span class="font-bold text-xl tracking-tight text-slate-800">Pro Crypto Tool</span>
+                </div>
+                <button onclick="app.clearAll()" class="text-sm text-slate-500 hover:text-red-600 transition-colors flex items-center gap-1">
+                    <i class="fa-solid fa-trash-can"></i> 清空
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- 左侧导航 -->
+            <div class="lg:col-span-3 space-y-2">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-4 bg-slate-50 border-b border-slate-100">
+                        <h3 class="font-semibold text-slate-700 text-sm uppercase tracking-wider">算法分类</h3>
+                    </div>
+                    <div class="flex flex-col">
+                        <button class="nav-btn w-full text-left px-4 py-3 text-sm font-medium text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition-all border-l-4 border-transparent nav-active" data-target="symmetric">
+                            <i class="fa-solid fa-key w-6 text-center mr-2"></i> 对称加密 (AES/DES)
+                        </button>
+                        <button class="nav-btn w-full text-left px-4 py-3 text-sm font-medium text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition-all border-l-4 border-transparent" data-target="asymmetric">
+                            <i class="fa-solid fa-user-lock w-6 text-center mr-2"></i> 非对称加密 (RSA)
+                        </button>
+                        <button class="nav-btn w-full text-left px-4 py-3 text-sm font-medium text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition-all border-l-4 border-transparent" data-target="hash">
+                            <i class="fa-solid fa-fingerprint w-6 text-center mr-2"></i> 哈希摘要 (MD5/SHA)
+                        </button>
+                        <button class="nav-btn w-full text-left px-4 py-3 text-sm font-medium text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition-all border-l-4 border-transparent" data-target="encoding">
+                            <i class="fa-solid fa-code w-6 text-center mr-2"></i> 编码转换 (Base64/Hex)
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 信息卡片 -->
+                <div class="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg p-5 text-white">
+                    <h4 class="font-bold mb-2 flex items-center gap-2"><i class="fa-solid fa-lightbulb"></i> 小贴士</h4>
+                    <p class="text-xs opacity-90 leading-relaxed">
+                        RSA 适合小数据加密或密钥交换；AES 适合大数据量加密。实际应用中常采用混合加密方案。
+                    </p>
+                </div>
+            </div>
+
+            <!-- 右侧操作区 -->
+            <div class="lg:col-span-9 space-y-6">
+                
+                <!-- 输入区 -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                    <div class="flex justify-between items-center mb-3">
+                        <label class="text-sm font-bold text-slate-700">输入内容 / 明文</label>
+                        <span id="inputStats" class="text-xs text-slate-400 font-mono">0 chars</span>
+                    </div>
+                    <textarea id="inputText" class="w-full h-32 p-4 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all font-mono text-sm resize-y" placeholder="在此输入需要处理的文本..."></textarea>
+                    
+                    <!-- 动态配置区 -->
+                    <div id="configArea" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
+                        <!-- 对称加密配置 -->
+                        <div id="symConfig" class="space-y-2 hidden">
+                            <label class="text-xs font-semibold text-slate-500 uppercase">密钥 (Key)</label>
+                            <input type="text" id="symKey" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:border-indigo-500 outline-none" placeholder="例如: mySecretKey123">
+                        </div>
+                        <!-- 非对称加密配置 -->
+                        <div id="asymConfig" class="space-y-2 hidden md:col-span-2">
+                            <label class="text-xs font-semibold text-slate-500 uppercase">RSA 公钥 / 私钥 (PEM格式)</label>
+                            <textarea id="asymKey" class="w-full h-24 px-3 py-2 border border-slate-300 rounded-md text-xs font-mono focus:border-indigo-500 outline-none" placeholder="-----BEGIN PUBLIC KEY-----..."></textarea>
+                            <div class="flex gap-2 mt-2">
+                                <button onclick="app.generateRSAKeys()" class="text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1 rounded transition">
+                                    <i class="fa-solid fa-arrows-rotate"></i> 生成测试密钥对
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 按钮组 -->
+                    <div class="mt-6 flex flex-wrap gap-3" id="actionButtons"></div>
+                </div>
+
+                <!-- 输出区 -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 relative">
+                    <div class="flex justify-between items-center mb-3">
+                        <label class="text-sm font-bold text-slate-700">处理结果</label>
+                        <button onclick="app.copyOutput()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1 rounded transition flex items-center gap-1">
+                            <i class="fa-regular fa-copy"></i> 复制
+                        </button>
+                    </div>
+                    <textarea id="outputText" readonly class="w-full h-32 p-4 bg-slate-100 border border-slate-200 rounded-lg text-slate-800 font-mono text-sm resize-y cursor-default"></textarea>
+                    <div id="toast" class="absolute top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg opacity-0 transition-opacity duration-300 pointer-events-none text-sm">
+                        <i class="fa-solid fa-check"></i> 已复制
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        class CryptoApp {
+            constructor() {
+                this.modules = {
+                    symmetric: [
+                        { id: 'aes-enc', label: 'AES 加密', action: 'aes', mode: 'enc' },
+                        { id: 'aes-dec', label: 'AES 解密', action: 'aes', mode: 'dec' },
+                        { id: 'des-enc', label: 'DES 加密', action: 'des', mode: 'enc' },
+                        { id: 'des-dec', label: 'DES 解密', action: 'des', mode: 'dec' },
+                        { id: 'rc4-enc', label: 'RC4 加密', action: 'rc4', mode: 'enc' }
+                    ],
+                    asymmetric: [
+                        { id: 'rsa-enc', label: 'RSA 加密', action: 'rsa', mode: 'enc' },
+                        { id: 'rsa-dec', label: 'RSA 解密', action: 'rsa', mode: 'dec' },
+                        { id: 'rsa-sign', label: 'RSA 签名', action: 'rsa', mode: 'sign' },
+                        { id: 'rsa-verify', label: 'RSA 验签', action: 'rsa', mode: 'verify' }
+                    ],
+                    hash: [
+                        { id: 'md5', label: 'MD5', action: 'md5' },
+                        { id: 'sha1', label: 'SHA-1', action: 'sha1' },
+                        { id: 'sha256', label: 'SHA-256', action: 'sha256' },
+                        { id: 'sha512', label: 'SHA-512', action: 'sha512' }
+                    ],
+                    encoding: [
+                        { id: 'base64-enc', label: 'Base64 编码', action: 'base64', mode: 'enc' },
+                        { id: 'base64-dec', label: 'Base64 解码', action: 'base64', mode: 'dec' },
+                        { id: 'hex-enc', label: 'Hex 编码', action: 'hex', mode: 'enc' },
+                        { id: 'hex-dec', label: 'Hex 解码', action: 'hex', mode: 'dec' }
+                    ]
+                };
+                this.currentModule = 'symmetric';
+                this.init();
+            }
+
+            init() {
+                this.bindEvents();
+                this.renderButtons('symmetric');
+                document.querySelector('.nav-btn').classList.add('nav-active', 'border-indigo-500', 'bg-indigo-50', 'text-indigo-600');
+                document.querySelector('.nav-btn').classList.remove('border-transparent', 'text-slate-600');
+            }
+
+            bindEvents() {
+                document.querySelectorAll('.nav-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('.nav-btn').forEach(b => {
+                            b.classList.remove('nav-active', 'border-indigo-500', 'bg-indigo-50', 'text-indigo-600');
+                            b.classList.add('border-transparent', 'text-slate-600');
+                        });
+                        e.currentTarget.classList.add('nav-active', 'border-indigo-500', 'bg-indigo-50', 'text-indigo-600');
+                        e.currentTarget.classList.remove('border-transparent', 'text-slate-600');
+                        
+                        this.currentModule = e.currentTarget.dataset.target;
+                        this.renderButtons(this.currentModule);
+                        this.updateConfigUI();
+                    });
+                });
+
+                document.getElementById('inputText').addEventListener('input', () => {
+                    document.getElementById('inputStats').textContent = `${document.getElementById('inputText').value.length} chars`;
+                });
+            }
+
+            updateConfigUI() {
+                const configArea = document.getElementById('configArea');
+                const symConfig = document.getElementById('symConfig');
+                const asymConfig = document.getElementById('asymConfig');
+                
+                configArea.classList.remove('hidden');
+                symConfig.classList.add('hidden');
+                asymConfig.classList.add('hidden');
+
+                if (this.currentModule === 'symmetric') {
+                    symConfig.classList.remove('hidden');
+                } else if (this.currentModule === 'asymmetric') {
+                    asymConfig.classList.remove('hidden');
+                } else {
+                    configArea.classList.add('hidden');
+                }
+            }
+
+            renderButtons(module) {
+                const container = document.getElementById('actionButtons');
+                container.innerHTML = '';
+                this.modules[module].forEach(item => {
+                    const btn = document.createElement('button');
+                    btn.className = 'flex-1 min-w-[100px] bg-white border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 py-2 px-3 rounded-lg shadow-sm transition-all text-sm font-medium';
+                    btn.textContent = item.label;
+                    btn.onclick = () => this.execute(item);
+                    container.appendChild(btn);
+                });
+            }
+
+            execute(item) {
+                const input = document.getElementById('inputText').value;
+                const outputEl = document.getElementById('outputText');
+                
+                if (!input && item.action !== 'rsa-sign') return this.showToast('请输入内容', true);
+
+                try {
+                    let res = '';
+                    switch(item.action) {
+                        case 'aes':
+                        case 'des':
+                        case 'rc4':
+                            const key = document.getElementById('symKey').value;
+                            if (!key) throw new Error('请输入密钥');
+                            const algo = item.action.toUpperCase();
+                            if (item.mode === 'enc') {
+                                res = CryptoJS[algo].encrypt(input, key).toString();
+                            } else {
+                                const bytes = CryptoJS[algo].decrypt(input, key);
+                                res = bytes.toString(CryptoJS.enc.Utf8);
+                                if (!res) throw new Error('解密失败，密钥错误或密文损坏');
+                            }
+                            break;
+                        
+                        case 'rsa':
+                            const pemKey = document.getElementById('asymKey').value;
+                            if (!pemKey) throw new Error('请输入 PEM 格式的密钥');
+                            
+                            // 使用 jsrsasign 库处理 RSA
+                            const rsa = new KJUR.asn1.rsa.RSAKey();
+                            
+                            if (item.mode === 'enc') {
+                                rsa.readPublicKeyFromPEMString(pemKey);
+                                const encrypted = rsa.encrypt(input);
+                                res = encrypted ? KJUR.crypto.Util.base64toHex(encrypted) : ''; 
+                                // jsrsasign encrypt returns base64 usually, converting to hex for consistency or keep base64
+                                res = encrypted; 
+                            } else if (item.mode === 'dec') {
+                                rsa.readPrivateKeyFromPEMString(pemKey);
+                                res = rsa.decrypt(input);
+                            } else if (item.mode === 'sign') {
+                                rsa.readPrivateKeyFromPEMString(pemKey);
+                                const hashAlg = 'sha256';
+                                res = rsa.signString(input, hashAlg);
+                            } else if (item.mode === 'verify') {
+                                rsa.readPublicKeyFromPEMString(pemKey);
+                                const isValid = rsa.verifyString(input, item.signature || prompt("请输入签名值:"), 'sha256');
+                                res = isValid ? "签名验证成功 (Valid)" : "签名验证失败 (Invalid)";
+                            }
+                            break;
+
+                        case 'md5':
+                            res = CryptoJS.MD5(input).toString();
+                            break;
+                        case 'sha1':
+                            res = CryptoJS.SHA1(input).toString();
+                            break;
+                        case 'sha256':
+                            res = CryptoJS.SHA256(input).toString();
+                            break;
+                        case 'sha512':
+                            res = CryptoJS.SHA512(input).toString();
+                            break;
+                        
+                        case 'base64':
+                            res = item.mode === 'enc' ? btoa(unescape(encodeURIComponent(input))) : decodeURIComponent(escape(atob(input)));
+                            break;
+                        case 'hex':
+                            if (item.mode === 'enc') {
+                                res = CryptoJS.enc.Utf8.parse(input).toString(CryptoJS.enc.Hex);
+                            } else {
+                                res = CryptoJS.enc.Hex.parse(input).toString(CryptoJS.enc.Utf8);
+                            }
+                            break;
+                    }
+                    
+                    outputEl.value = res;
+                } catch (e) {
+                    console.error(e);
+                    outputEl.value = '';
+                    this.showToast(e.message || '处理失败', true);
+                }
+            }
+
+            generateRSAKeys() {
+                try {
+                    const rsa = new KJUR.asn1.rsa.RSAKey();
+                    rsa.generate(1024, '10001'); // 1024 bit for speed in demo, use 2048 in prod
+                    const pubPEM = rsa.getPublicPEMString();
+                    const priPEM = rsa.getPrivatePEMString();
+                    
+                    document.getElementById('asymKey').value = priPEM;
+                    this.showToast('密钥对已生成 (私钥已填入)');
+                    
+                    // 可选：在控制台打印公钥方便测试
+                    console.log("Public Key:\n", pubPEM);
+                } catch (e) {
+                    this.showToast('密钥生成失败', true);
+                }
+            }
+
+            copyOutput() {
+                const el = document.getElementById('outputText');
+                if (!el.value) return;
+                el.select();
+                document.execCommand('copy');
+                this.showToast('已复制');
+            }
+
+            clearAll() {
+                document.getElementById('inputText').value = '';
+                document.getElementById('outputText').value = '';
+                document.getElementById('symKey').value = '';
+                document.getElementById('asymKey').value = '';
+                document.getElementById('inputStats').textContent = '0 chars';
+            }
+
+            showToast(msg, isError = false) {
+                const toast = document.getElementById('toast');
+                toast.innerHTML = isError ? `<i class="fa-solid fa-circle-exclamation"></i> ${msg}` : `<i class="fa-solid fa-check"></i> 已复制`;
+                toast.className = `absolute top-4 right-4 px-4 py-2 rounded-lg shadow-lg transition-opacity duration-300 pointer-events-none text-sm z-50 ${isError ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`;
+                toast.style.opacity = '1';
+                setTimeout(() => { toast.style.opacity = '0'; }, 2000);
+            }
+        }
+        const app = new CryptoApp();
+    </script>
+</body>
+</html>
